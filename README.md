@@ -7,6 +7,8 @@ A browser-based wideband spectrum analyzer using RTL-SDR via WebUSB.
 - Uses [webrtlsdr](https://github.com/jtarrio/webrtlsdr) library for RTL-SDR access
 - Inspired by [Radio Receiver](https://radio.ea1iti.es) by Jacobo Tarrío
 
+  | ![Screenshot inputs](img/screenshot_2.jpg) | ![Screenshot scan](img/screenshot_1.jpg) |
+
 
 ## Features
 
