@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTL-SDR Read Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #log {
+            background: #000;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error { color: #ff4444; }
+        .success { color: #44ff88; }
+        .info { color: #4488ff; }
+    </style>
+</head>
+<body>
+    <h1>🔧 RTL-SDR Read Samples Debug</h1>
+    
+    <button id="testBtn">Connect & Read Samples</button>
+    <button id="clearLog">Clear Log</button>
+    
+    <div id="log"></div>
+
+    <script type="module">
+        import { RTL2832U_Provider } from "./rtlsdr-bundle.js";
+        
+        const logDiv = document.getElementById('log');
+        
+        function log(msg, type = '') {
+            const time = new Date().toLocaleTimeString();
+            const span = document.createElement('span');
+            span.className = type;
+            span.textContent = `[${time}] ${msg}\n`;
+            logDiv.appendChild(span);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+        
+        function logObject(label, obj) {
+            log(`${label}:`, 'info');
+            log(`  typeof: ${typeof obj}`);
+            log(`  constructor: ${obj?.constructor?.name}`);
+            log(`  keys: ${obj ? Object.keys(obj).join(', ') : 'N/A'}`);
+            
+            if (obj && typeof obj === 'object') {
+                for (const key of Object.keys(obj)) {
+                    const val = obj[key];
+                    log(`  .${key}: typeof=${typeof val}, constructor=${val?.constructor?.name}, length=${val?.length ?? val?.byteLength ?? 'N/A'}`);
+                }
+            }
+            
+            if (obj instanceof ArrayBuffer) {
+                log(`  (ArrayBuffer) byteLength: ${obj.byteLength}`);
+                const view = new Uint8Array(obj);
+                log(`  First 10 bytes: ${Array.from(view.slice(0, 10)).join(', ')}`);
+            }
+            
+            if (obj instanceof Uint8Array) {
+                log(`  (Uint8Array) length: ${obj.length}`);
+                log(`  First 10 bytes: ${Array.from(obj.slice(0, 10)).join(', ')}`);
+            }
+        }
+        
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            try {
+                log('=== Starting Test ===', 'info');
+                
+                log('Creating provider...', 'info');
+                const provider = new RTL2832U_Provider();
+                
+                log('Calling provider.get()...', 'info');
+                const device = await provider.get();
+                log('✅ Device connected', 'success');
+                
+                logObject('Device object', device);
+                
+                log('Setting sample rate to 2.4 MHz...', 'info');
+                const actualRate = await device.setSampleRate(2400000);
+                log(`✅ Sample rate set to ${actualRate}`, 'success');
+                
+                log('Setting frequency to 100 MHz...', 'info');
+                const actualFreq = await device.setCenterFrequency(100000000);
+                log(`✅ Frequency set to ${actualFreq}`, 'success');
+                
+                log('Setting gain to auto...', 'info');
+                await device.setGain(null);
+                log('✅ Gain set', 'success');
+                
+                log('Resetting buffer...', 'info');
+                await device.resetBuffer();
+                log('✅ Buffer reset', 'success');
+                
+                log('Reading 1024 samples...', 'info');
+                const result = await device.readSamples(1024);
+                
+                log('=== readSamples() returned ===', 'info');
+                logObject('result', result);
+                
+                if (result && result.data) {
+                    log('=== result.data ===', 'info');
+                    logObject('result.data', result.data);
+                    
+                    log('Wrapping in Uint8Array...', 'info');
+                    const samples = new Uint8Array(result.data);
+                    log(`✅ Uint8Array created, length: ${samples.length}`, 'success');
+                    log(`First 20 bytes: ${Array.from(samples.slice(0, 20)).join(', ')}`);
+                } else {
+                    log('❌ result.data is undefined or null!', 'error');
+                    
+                    // Try direct access
+                    if (result instanceof ArrayBuffer) {
+                        log('result IS an ArrayBuffer directly!', 'info');
+                        const samples = new Uint8Array(result);
+                        log(`✅ Uint8Array from direct result, length: ${samples.length}`, 'success');
+                    }
+                    
+                    if (result instanceof Uint8Array) {
+                        log('result IS a Uint8Array directly!', 'info');
+                        log(`length: ${result.length}`, 'success');
+                    }
+                }
+                
+                log('Closing device...', 'info');
+                await device.close();
+                log('✅ Device closed', 'success');
+                
+                log('=== Test Complete ===', 'success');
+                
+            } catch (err) {
+                log(`❌ Error: ${err.name}: ${err.message}`, 'error');
+                log(`Stack: ${err.stack}`, 'error');
+            }
+        });
+        
+        document.getElementById('clearLog').addEventListener('click', () => {
+            logDiv.innerHTML = '';
+        });
+        
+        log('Page loaded. Click button to test.', 'info');
+    </script>
+</body>
+</html>
