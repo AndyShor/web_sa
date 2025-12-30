@@ -4,6 +4,7 @@ const ASSETS = [
     './',
     './index.html',
     './app.js',
+    './rtlsdr-bundle.js',
     './manifest.json'
 ];
 

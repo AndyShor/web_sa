@@ -1,7 +1,7 @@
 // Web Spectrum Analyzer - RTL-SDR Wideband Scanner
-// Fix: Static import, but provider created inside click handler
+// Using locally bundled library (no CDN dependency)
 
-import { RTL2832U_Provider } from "https://cdn.jsdelivr.net/npm/@jtarrio/webrtlsdr@0.4.1/+esm";
+import { RTL2832U_Provider } from "./rtlsdr-bundle.js";
 
 // ============ FFT Implementation ============
 class FFT {
@@ -113,8 +113,6 @@ function drawColorbar(canvas) {
 // ============ Spectrum Analyzer Class ============
 class SpectrumAnalyzer {
     constructor() {
-        // NOTE: Do NOT create RTL2832U_Provider here!
-        // It must be created inside the click handler for WebUSB to work
         this.device = null;
         this.isRunning = false;
         this.stopRequested = false;
@@ -156,21 +154,19 @@ class SpectrumAnalyzer {
         this.spectrumCtx.fillRect(0, 0, this.displayWidth, this.spectrumHeight);
     }
     
-    // CRITICAL: Create provider INSIDE this method (called from click handler)
     async connect() {
         if (!navigator.usb) {
             throw new Error('WebUSB not supported. Use Chrome/Edge on desktop or Android.');
         }
         
         try {
-            console.log('Creating RTL2832U_Provider inside click handler...');
-            // Create provider HERE, inside the click handler context
+            console.log('Creating RTL2832U_Provider...');
             const provider = new RTL2832U_Provider();
             
-            console.log('Calling provider.get() to request device...');
+            console.log('Requesting device...');
             this.device = await provider.get();
             
-            console.log('Device connected successfully');
+            console.log('Device connected');
             return true;
         } catch (err) {
             console.error('Connection error:', err);
