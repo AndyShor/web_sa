@@ -320,6 +320,9 @@ class SpectrumAnalyzer {
         this.drawSpectrum(this.currentRow);
         this.updateProgress(100);
         
+        // Auto-scale to fit data
+        this.autoScale();
+        
         this.isRunning = false;
         return !this.stopRequested;
     }
@@ -484,6 +487,37 @@ class SpectrumAnalyzer {
             this.drawWaterfall(this.currentRow + 1);
             this.drawSpectrum(this.currentRow);
         }
+    }
+    
+    autoScale() {
+        if (!this.spectrogram || this.currentRow < 0) return;
+        
+        // Find min and max values across all collected data
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+        
+        for (let row = 0; row <= this.currentRow; row++) {
+            const data = this.spectrogram[row];
+            for (let i = 0; i < data.length; i++) {
+                const val = data[i];
+                if (val < minVal) minVal = val;
+                if (val > maxVal) maxVal = val;
+            }
+        }
+        
+        // Add some margin (5 dB)
+        minVal = Math.floor(minVal - 5);
+        maxVal = Math.ceil(maxVal + 5);
+        
+        // Update the UI
+        document.getElementById('vmin').value = minVal;
+        document.getElementById('vmax').value = maxVal;
+        
+        // Redraw with new scale
+        this.redraw();
+        drawColorbar(document.getElementById('colorbar'));
+        
+        return { min: minVal, max: maxVal };
     }
 }
 

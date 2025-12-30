@@ -8,6 +8,10 @@
     <meta name="theme-color" content="#0a0a1a">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
             background: #0a0a1a;
@@ -24,6 +28,7 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            overflow-x: hidden;
         }
         .controls {
             display: grid;
@@ -138,11 +143,16 @@
             background: #151530;
             border-radius: 8px;
             margin-bottom: 15px;
+            flex-wrap: wrap;
+            max-width: 100%;
+            overflow: hidden;
         }
-        .color-scale label { font-size: 0.85em; color: #888; }
-        .color-scale input { width: 80px; }
+        .color-scale label { font-size: 0.85em; color: #888; white-space: nowrap; }
+        .color-scale input { width: 70px; flex-shrink: 0; }
         #colorbar {
             flex-grow: 1;
+            flex-shrink: 1;
+            min-width: 50px;
             height: 20px;
             border-radius: 4px;
         }
@@ -159,11 +169,11 @@
             </div>
             <div class="control-group">
                 <label>Stop Frequency (MHz)</label>
-                <input type="number" id="stopFreq" value="108" min="24" max="1700" step="0.1">
+                <input type="number" id="stopFreq" value="95" min="24" max="1700" step="0.1">
             </div>
             <div class="control-group">
                 <label>Time Rows</label>
-                <input type="number" id="numRows" value="100" min="10" max="1000" step="10">
+                <input type="number" id="numRows" value="50" min="10" max="1000" step="10">
             </div>
             <div class="control-group">
                 <label>Gain (dB)</label>
@@ -180,8 +190,8 @@
             <div class="control-group">
                 <label>FFT Size</label>
                 <select id="fftSize">
-                    <option value="512">512</option>
-                    <option value="1024" selected>1024</option>
+                    <option value="512" selected>512</option>
+                    <option value="1024">1024</option>
                     <option value="2048">2048</option>
                 </select>
             </div>
