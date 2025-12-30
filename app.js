@@ -255,7 +255,7 @@ class SpectrumAnalyzer {
         
         await this.device.setCenterFrequency(centerFreqs[0]);
         await this.device.resetBuffer();
-        await this.device.readSamples(2048);
+        await this.device.readSamples(2048);  // Discard settling samples
         
         for (let row = 0; row < numRows && !this.stopRequested; row++) {
             this.currentRow = row;
@@ -265,10 +265,18 @@ class SpectrumAnalyzer {
                 await this.device.setCenterFrequency(cf);
                 
                 if (row === 0 && chunkIdx > 0) {
-                    await this.device.readSamples(512);
+                    await this.device.readSamples(512);  // Discard settling samples
                 }
                 
-                const rawSamples = await this.device.readSamples(fftSize);
+                // v2.0.4 API: readSamples returns { frequency, directSampling, data }
+                // data is an ArrayBuffer, need to wrap in Uint8Array
+                const result = await this.device.readSamples(fftSize);
+                const rawSamples = new Uint8Array(result.data);
+                
+                if (!rawSamples || rawSamples.length < fftSize * 2) {
+                    console.warn('Insufficient samples received:', rawSamples?.length);
+                    continue;
+                }
                 
                 const real = new Float32Array(fftSize);
                 const imag = new Float32Array(fftSize);
