@@ -77,7 +77,7 @@ web-spectrum-analyzer/
 
 ## License
 
-MIT License - feel free to use and modify!
+Apache 2.0 license as per code of webrtlsdr
 
 ## ⚠️ Driver Note
 
