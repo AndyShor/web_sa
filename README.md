@@ -1,6 +1,7 @@
 # Web Spectrum Analyzer
 
 A browser-based wideband spectrum analyzer using RTL-SDR via WebUSB.
+Can be used with mobile devices with RTL-SDR connected by USB-OTG cable.
 Installable as a PWA, works offline after first load for App-like experience.
 
 ## Credits
