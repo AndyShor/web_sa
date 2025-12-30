@@ -1,5 +1,5 @@
 // Service Worker for Web Spectrum Analyzer PWA
-const CACHE_NAME = 'spectrum-analyzer-v1';
+const CACHE_NAME = 'spectrum-analyzer-v3';
 const ASSETS = [
     './',
     './index.html',

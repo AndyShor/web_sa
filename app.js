@@ -132,26 +132,32 @@ class SpectrumAnalyzer {
     initCanvases() {
         const dpr = window.devicePixelRatio || 1;
         
+        // Waterfall canvas
         const wRect = this.waterfallCanvas.getBoundingClientRect();
         this.waterfallCanvas.width = wRect.width * dpr;
         this.waterfallCanvas.height = wRect.height * dpr;
         this.waterfallCtx = this.waterfallCanvas.getContext('2d');
-        this.waterfallCtx.scale(dpr, dpr);
+        // Don't scale context - we'll handle DPR in drawing code
         
+        // Spectrum canvas
         const sRect = this.spectrumCanvas.getBoundingClientRect();
         this.spectrumCanvas.width = sRect.width * dpr;
         this.spectrumCanvas.height = sRect.height * dpr;
         this.spectrumCtx = this.spectrumCanvas.getContext('2d');
-        this.spectrumCtx.scale(dpr, dpr);
+        this.spectrumCtx.scale(dpr, dpr);  // Scale for line drawing
         
+        // Store both CSS and actual pixel dimensions
         this.displayWidth = wRect.width;
         this.displayHeight = wRect.height;
+        this.spectrumDisplayWidth = sRect.width;
         this.spectrumHeight = sRect.height;
+        this.dpr = dpr;
         
+        // Clear canvases
         this.waterfallCtx.fillStyle = '#000';
-        this.waterfallCtx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+        this.waterfallCtx.fillRect(0, 0, this.waterfallCanvas.width, this.waterfallCanvas.height);
         this.spectrumCtx.fillStyle = '#0a0a1a';
-        this.spectrumCtx.fillRect(0, 0, this.displayWidth, this.spectrumHeight);
+        this.spectrumCtx.fillRect(0, 0, this.spectrumDisplayWidth, this.spectrumHeight);
     }
     
     async connect() {
@@ -327,9 +333,9 @@ class SpectrumAnalyzer {
         this.freqs = null;
         this.currentRow = 0;
         this.waterfallCtx.fillStyle = '#000';
-        this.waterfallCtx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+        this.waterfallCtx.fillRect(0, 0, this.waterfallCanvas.width, this.waterfallCanvas.height);
         this.spectrumCtx.fillStyle = '#0a0a1a';
-        this.spectrumCtx.fillRect(0, 0, this.displayWidth, this.spectrumHeight);
+        this.spectrumCtx.fillRect(0, 0, this.spectrumDisplayWidth, this.spectrumHeight);
     }
     
     drawWaterfall(rowCount) {
@@ -339,13 +345,12 @@ class SpectrumAnalyzer {
         const vmax = parseFloat(document.getElementById('vmax').value);
         const range = vmax - vmin;
         
-        const width = this.displayWidth;
-        const height = this.displayHeight;
         const bins = this.spectrogram[0].length;
-        
         const ctx = this.waterfallCtx;
-        const imgWidth = Math.floor(width);
-        const imgHeight = Math.floor(height);
+        
+        // Use actual canvas pixel dimensions (not CSS dimensions)
+        const imgWidth = this.waterfallCanvas.width;
+        const imgHeight = this.waterfallCanvas.height;
         const imageData = ctx.createImageData(imgWidth, imgHeight);
         const data = imageData.data;
         
@@ -371,6 +376,14 @@ class SpectrumAnalyzer {
         
         ctx.putImageData(imageData, 0, 0);
         
+        // Draw frequency labels (scale for DPR)
+        const dpr = this.dpr;
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        
+        const width = this.displayWidth;
+        const height = this.displayHeight;
+        
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(0, height - 20, width, 20);
         ctx.fillStyle = '#888';
@@ -385,6 +398,8 @@ class SpectrumAnalyzer {
             const x = i / numLabels * width;
             ctx.fillText(freq.toFixed(1), x, height - 5);
         }
+        
+        ctx.restore();
     }
     
     drawSpectrum(rowIdx) {
@@ -393,7 +408,7 @@ class SpectrumAnalyzer {
         const vmin = parseFloat(document.getElementById('vmin').value);
         const vmax = parseFloat(document.getElementById('vmax').value);
         
-        const width = this.displayWidth;
+        const width = this.spectrumDisplayWidth;
         const height = this.spectrumHeight;
         const ctx = this.spectrumCtx;
         const row = this.spectrogram[rowIdx];
