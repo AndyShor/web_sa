@@ -2,6 +2,12 @@
 
 A browser-based wideband spectrum analyzer using RTL-SDR via WebUSB.
 
+## Credits
+
+- Uses [webrtlsdr](https://github.com/jtarrio/webrtlsdr) library for RTL-SDR access
+- Inspired by [Radio Receiver](https://radio.ea1iti.es) by Jacobo Tarrío
+
+
 ## Features
 
 - **Wideband Scanning**: Scan frequency ranges wider than RTL-SDR's native bandwidth (up to ~1.7 GHz)
@@ -68,10 +74,6 @@ web-spectrum-analyzer/
 | Firefox | ❌ No (no WebUSB) |
 | Safari | ❌ No (no WebUSB) |
 
-## Credits
-
-- Uses [webrtlsdr](https://github.com/jtarrio/webrtlsdr) library for RTL-SDR access
-- Inspired by [Radio Receiver](https://radio.ea1iti.es) by Jacobo Tarrío
 
 ## License
 
