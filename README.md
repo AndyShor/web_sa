@@ -13,10 +13,10 @@ A browser-based wideband spectrum analyzer using RTL-SDR via WebUSB.
 
 ## Features
 
-- **Wideband Scanning**: Scan frequency ranges wider than RTL-SDR's native bandwidth (up to ~1.7 GHz)
-- **Waterfall Display**: Real-time spectrogram visualization with viridis colormap
-- **Spectrum Plot**: Live power vs frequency graph
-- **Edge Trimming**: Reduces artifacts at chunk boundaries
+- **Wideband Scanning**: splices several spectrum ranges if exceeds default values, vider scans take time
+- **Waterfall Display**: Real-time spectrogram visualization with viridis colormap (rescales when completed)
+- **Spectrum Plot**: Power vs frequency graph for current time (rescales when completed)
+- **Edge Trimming**: Reduces artifacts at chunk boundaries by overlapping them
 - **Configurable Parameters**: FFT size, gain, edge trim, time rows
 - **PWA Support**: Installable as an app, works offline (after first load)
 - **No Backend Required**: Runs entirely in the browser using WebUSB
@@ -47,11 +47,11 @@ A browser-based wideband spectrum analyzer using RTL-SDR via WebUSB.
 
 | Parameter | Description | Recommended |
 |-----------|-------------|-------------|
-| Start Freq | Lower frequency in MHz | 88 (FM band) |
-| Stop Freq | Upper frequency in MHz | 108 (FM band) |
-| Time Rows | Number of waterfall lines | 50-200 |
-| Gain | Tuner gain in dB | 40 dB |
-| FFT Size | Frequency bins per chunk | 1024 |
+| Start Freq | Lower frequency in MHz |  1-2500 MHz (88 MHz default, FM band) |
+| Stop Freq | Upper frequency in MHz |   1-2500 MHz (95 MHz default, FM band) |
+| Time Rows | Number of waterfall lines | 50-200 (defines scan time) |
+| Gain | Tuner gain in dB | 0-40 dB |
+| FFT Size | Frequency bins per chunk | 512/1024 |
 | Edge Trim | % to discard at chunk edges | 10% |
 | Min dB | Color scale minimum | -50 |
 | Max dB | Color scale maximum | 10 |
