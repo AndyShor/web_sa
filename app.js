@@ -1,5 +1,7 @@
 // Web Spectrum Analyzer - RTL-SDR Wideband Scanner
-// Fixed version: Library loaded on-demand, provider created in click handler
+// Fix: Static import, but provider created inside click handler
+
+import { RTL2832U_Provider } from "https://cdn.jsdelivr.net/npm/@jtarrio/webrtlsdr@0.4.1/+esm";
 
 // ============ FFT Implementation ============
 class FFT {
@@ -111,6 +113,8 @@ function drawColorbar(canvas) {
 // ============ Spectrum Analyzer Class ============
 class SpectrumAnalyzer {
     constructor() {
+        // NOTE: Do NOT create RTL2832U_Provider here!
+        // It must be created inside the click handler for WebUSB to work
         this.device = null;
         this.isRunning = false;
         this.stopRequested = false;
@@ -152,39 +156,33 @@ class SpectrumAnalyzer {
         this.spectrumCtx.fillRect(0, 0, this.displayWidth, this.spectrumHeight);
     }
     
-    // CRITICAL FIX: Load library and create provider INSIDE the click handler
+    // CRITICAL: Create provider INSIDE this method (called from click handler)
     async connect() {
-        // Check WebUSB support first
         if (!navigator.usb) {
-            throw new Error('WebUSB not supported. Use Chrome or Edge on desktop/Android.');
+            throw new Error('WebUSB not supported. Use Chrome/Edge on desktop or Android.');
         }
         
         try {
-            // Dynamic import - load library only when needed
-            console.log('Loading webrtlsdr library...');
-            const { RTL2832U_Provider } = await import('https://esm.sh/@jtarrio/webrtlsdr@0.4.1/rtlsdr.js');
-            
-            // Create provider INSIDE the click handler (user gesture context)
-            console.log('Creating RTL2832U_Provider...');
+            console.log('Creating RTL2832U_Provider inside click handler...');
+            // Create provider HERE, inside the click handler context
             const provider = new RTL2832U_Provider();
             
-            // Request device - this triggers the USB permission dialog
-            console.log('Requesting device...');
+            console.log('Calling provider.get() to request device...');
             this.device = await provider.get();
             
-            console.log('Device connected:', this.device);
+            console.log('Device connected successfully');
             return true;
         } catch (err) {
             console.error('Connection error:', err);
             
             if (err.message && err.message.includes('No device selected')) {
-                throw new Error('No device selected. Please select your RTL-SDR from the list.');
+                throw new Error('No device selected. Please select your RTL-SDR.');
             }
             if (err.name === 'NotFoundError') {
-                throw new Error('No RTL-SDR device found. Check USB connection.');
+                throw new Error('No RTL-SDR found. Check USB connection.');
             }
             if (err.name === 'SecurityError') {
-                throw new Error('USB access denied. Make sure you\'re using HTTPS.');
+                throw new Error('USB access denied. HTTPS required.');
             }
             
             throw new Error('Connection failed: ' + (err.message || err));
@@ -484,10 +482,10 @@ function setStatus(msg, isError = false) {
     statusDiv.style.borderLeft = isError ? '3px solid #ff4444' : '3px solid #44ff88';
 }
 
-// Connect - everything happens inside the click handler!
+// Connect
 connectBtn.addEventListener('click', async () => {
     try {
-        setStatus('Loading library and requesting device...');
+        setStatus('Requesting USB device...');
         await analyzer.connect();
         connectBtn.disabled = true;
         scanBtn.disabled = false;
