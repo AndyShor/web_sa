@@ -1,7 +1,5 @@
 // Web Spectrum Analyzer - RTL-SDR Wideband Scanner
-// Uses WebUSB to communicate directly with RTL-SDR device
-
-import { RTL2832U_Provider } from "https://esm.sh/@jtarrio/webrtlsdr@0.4.1/rtlsdr.js";
+// Fixed version: Library loaded on-demand, provider created in click handler
 
 // ============ FFT Implementation ============
 class FFT {
@@ -26,7 +24,6 @@ class FFT {
 
     forward(real, imag) {
         const n = this.size;
-        // Bit reversal
         for (let i = 0; i < n; i++) {
             const j = this.reverseTable[i];
             if (j > i) {
@@ -34,7 +31,6 @@ class FFT {
                 [imag[i], imag[j]] = [imag[j], imag[i]];
             }
         }
-        // Cooley-Tukey FFT
         for (let size = 2; size <= n; size *= 2) {
             const halfSize = size / 2;
             const step = n / size;
@@ -68,7 +64,6 @@ class FFT {
 // ============ Color Maps ============
 function viridis(t) {
     t = Math.max(0, Math.min(1, t));
-    // Attempt at viridis colormap approximation
     const c0 = [0.267004, 0.004874, 0.329415];
     const c1 = [0.282327, 0.140926, 0.457517];
     const c2 = [0.253935, 0.265254, 0.529983];
@@ -117,7 +112,6 @@ function drawColorbar(canvas) {
 class SpectrumAnalyzer {
     constructor() {
         this.device = null;
-        this.provider = new RTL2832U_Provider();
         this.isRunning = false;
         this.stopRequested = false;
         
@@ -152,25 +146,58 @@ class SpectrumAnalyzer {
         this.displayHeight = wRect.height;
         this.spectrumHeight = sRect.height;
         
-        // Clear canvases
         this.waterfallCtx.fillStyle = '#000';
         this.waterfallCtx.fillRect(0, 0, this.displayWidth, this.displayHeight);
         this.spectrumCtx.fillStyle = '#0a0a1a';
         this.spectrumCtx.fillRect(0, 0, this.displayWidth, this.spectrumHeight);
     }
     
+    // CRITICAL FIX: Load library and create provider INSIDE the click handler
     async connect() {
+        // Check WebUSB support first
+        if (!navigator.usb) {
+            throw new Error('WebUSB not supported. Use Chrome or Edge on desktop/Android.');
+        }
+        
         try {
-            this.device = await this.provider.get();
+            // Dynamic import - load library only when needed
+            console.log('Loading webrtlsdr library...');
+            const { RTL2832U_Provider } = await import('https://esm.sh/@jtarrio/webrtlsdr@0.4.1/rtlsdr.js');
+            
+            // Create provider INSIDE the click handler (user gesture context)
+            console.log('Creating RTL2832U_Provider...');
+            const provider = new RTL2832U_Provider();
+            
+            // Request device - this triggers the USB permission dialog
+            console.log('Requesting device...');
+            this.device = await provider.get();
+            
+            console.log('Device connected:', this.device);
             return true;
         } catch (err) {
-            throw new Error('Failed to connect: ' + err.message);
+            console.error('Connection error:', err);
+            
+            if (err.message && err.message.includes('No device selected')) {
+                throw new Error('No device selected. Please select your RTL-SDR from the list.');
+            }
+            if (err.name === 'NotFoundError') {
+                throw new Error('No RTL-SDR device found. Check USB connection.');
+            }
+            if (err.name === 'SecurityError') {
+                throw new Error('USB access denied. Make sure you\'re using HTTPS.');
+            }
+            
+            throw new Error('Connection failed: ' + (err.message || err));
         }
     }
     
     async disconnect() {
         if (this.device) {
-            await this.device.close();
+            try {
+                await this.device.close();
+            } catch (e) {
+                console.warn('Error closing device:', e);
+            }
             this.device = null;
         }
     }
@@ -191,16 +218,13 @@ class SpectrumAnalyzer {
         const numChunks = Math.max(1, Math.ceil(totalBandwidth / usableBandwidth));
         const stepSize = totalBandwidth / numChunks;
         
-        // Center frequencies for each chunk
         const centerFreqs = [];
         for (let i = 0; i < numChunks; i++) {
             centerFreqs.push(startFreq + stepSize / 2 + i * stepSize);
         }
         
-        // Adjust actual chunk bandwidth
         const actualChunkBW = Math.min(3.2e6, Math.max(0.9e6, stepSize / (usableBins / fftSize)));
         
-        // Build frequency axis
         const totalOutputBins = usableBins * numChunks;
         this.freqs = new Float32Array(totalOutputBins);
         for (let i = 0; i < numChunks; i++) {
@@ -211,19 +235,16 @@ class SpectrumAnalyzer {
             }
         }
         
-        // Initialize spectrogram
         this.spectrogram = new Array(numRows);
         for (let i = 0; i < numRows; i++) {
             this.spectrogram[i] = new Float32Array(totalOutputBins);
         }
         
-        // Update info display
         document.getElementById('infoBW').textContent = (totalBandwidth / 1e6).toFixed(2) + ' MHz';
         document.getElementById('infoChunks').textContent = numChunks;
         document.getElementById('infoRes').textContent = (actualChunkBW / fftSize / 1e3).toFixed(2) + ' kHz';
         document.getElementById('infoBins').textContent = totalOutputBins;
         
-        // Setup device
         await this.device.setSampleRate(actualChunkBW);
         if (gain !== 'auto') {
             await this.device.setGain(parseFloat(gain) * 10);
@@ -231,7 +252,6 @@ class SpectrumAnalyzer {
             await this.device.setGain(null);
         }
         
-        // Precompute window function (Hanning)
         const window = new Float32Array(fftSize);
         for (let i = 0; i < fftSize; i++) {
             window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
@@ -239,12 +259,10 @@ class SpectrumAnalyzer {
         
         const fft = new FFT(fftSize);
         
-        // Initial settling
         await this.device.setCenterFrequency(centerFreqs[0]);
         await this.device.resetBuffer();
         await this.device.readSamples(2048);
         
-        // Main scan loop
         for (let row = 0; row < numRows && !this.stopRequested; row++) {
             this.currentRow = row;
             
@@ -252,15 +270,12 @@ class SpectrumAnalyzer {
                 const cf = centerFreqs[chunkIdx];
                 await this.device.setCenterFrequency(cf);
                 
-                // Settle on first row
                 if (row === 0 && chunkIdx > 0) {
                     await this.device.readSamples(512);
                 }
                 
-                // Read samples
                 const rawSamples = await this.device.readSamples(fftSize);
                 
-                // Convert to float and apply window
                 const real = new Float32Array(fftSize);
                 const imag = new Float32Array(fftSize);
                 for (let i = 0; i < fftSize; i++) {
@@ -268,28 +283,23 @@ class SpectrumAnalyzer {
                     imag[i] = ((rawSamples[i * 2 + 1] - 127.5) / 127.5) * window[i];
                 }
                 
-                // FFT
                 fft.forward(real, imag);
                 
-                // Compute magnitude in dB
                 const magnitude = new Float32Array(fftSize);
                 for (let i = 0; i < fftSize; i++) {
                     const mag = real[i] * real[i] + imag[i] * imag[i];
                     magnitude[i] = 10 * Math.log10(mag + 1e-10);
                 }
                 
-                // FFT shift and trim edges
                 const shifted = fft.fftshift(magnitude);
                 const trimmed = shifted.slice(trimBins, fftSize - trimBins);
                 
-                // Store in spectrogram
                 const startBin = chunkIdx * usableBins;
                 for (let i = 0; i < usableBins; i++) {
                     this.spectrogram[row][startBin + i] = trimmed[i];
                 }
             }
             
-            // Update display periodically
             if (row % 5 === 0 || row === numRows - 1) {
                 this.drawWaterfall(row + 1);
                 this.drawSpectrum(row);
@@ -298,7 +308,6 @@ class SpectrumAnalyzer {
             }
         }
         
-        // Final draw
         this.drawWaterfall(this.currentRow + 1);
         this.drawSpectrum(this.currentRow);
         this.updateProgress(100);
@@ -333,9 +342,6 @@ class SpectrumAnalyzer {
         const bins = this.spectrogram[0].length;
         
         const ctx = this.waterfallCtx;
-        
-        // Create image data at display resolution
-        const dpr = window.devicePixelRatio || 1;
         const imgWidth = Math.floor(width);
         const imgHeight = Math.floor(height);
         const imageData = ctx.createImageData(imgWidth, imgHeight);
@@ -363,7 +369,6 @@ class SpectrumAnalyzer {
         
         ctx.putImageData(imageData, 0, 0);
         
-        // Draw frequency labels
         ctx.fillStyle = 'rgba(0,0,0,0.7)';
         ctx.fillRect(0, height - 20, width, 20);
         ctx.fillStyle = '#888';
@@ -392,11 +397,9 @@ class SpectrumAnalyzer {
         const row = this.spectrogram[rowIdx];
         const bins = row.length;
         
-        // Clear
         ctx.fillStyle = '#0a0a1a';
         ctx.fillRect(0, 0, width, height);
         
-        // Draw grid
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 1;
         for (let i = 1; i < 5; i++) {
@@ -414,7 +417,6 @@ class SpectrumAnalyzer {
             ctx.stroke();
         }
         
-        // Draw spectrum line
         ctx.strokeStyle = '#44ff88';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -433,7 +435,6 @@ class SpectrumAnalyzer {
         }
         ctx.stroke();
         
-        // Draw Y-axis labels (power)
         ctx.fillStyle = '#888';
         ctx.font = '11px monospace';
         ctx.textAlign = 'left';
@@ -443,7 +444,6 @@ class SpectrumAnalyzer {
             ctx.fillText(db.toFixed(0) + ' dB', 5, y + 12);
         }
         
-        // Draw X-axis labels (frequency)
         ctx.textAlign = 'center';
         const startFreq = this.freqs[0] / 1e6;
         const stopFreq = this.freqs[this.freqs.length - 1] / 1e6;
@@ -484,17 +484,17 @@ function setStatus(msg, isError = false) {
     statusDiv.style.borderLeft = isError ? '3px solid #ff4444' : '3px solid #44ff88';
 }
 
-// Connect
+// Connect - everything happens inside the click handler!
 connectBtn.addEventListener('click', async () => {
     try {
-        setStatus('Requesting USB device...');
+        setStatus('Loading library and requesting device...');
         await analyzer.connect();
         connectBtn.disabled = true;
         scanBtn.disabled = false;
         setStatus('✅ Connected! Configure parameters and click "Start Scan"');
     } catch (err) {
         setStatus('❌ ' + err.message, true);
-        console.error(err);
+        console.error('Connection error:', err);
     }
 });
 
@@ -530,7 +530,7 @@ scanBtn.addEventListener('click', async () => {
         
     } catch (err) {
         setStatus('❌ ' + err.message, true);
-        console.error(err);
+        console.error('Scan error:', err);
         scanBtn.disabled = false;
         stopBtn.disabled = true;
     }
@@ -553,7 +553,7 @@ clearBtn.addEventListener('click', () => {
     setStatus('Cleared');
 });
 
-// Color scale changes - redraw
+// Color scale changes
 document.getElementById('vmin').addEventListener('change', () => {
     analyzer.redraw();
     drawColorbar(document.getElementById('colorbar'));
@@ -563,7 +563,7 @@ document.getElementById('vmax').addEventListener('change', () => {
     drawColorbar(document.getElementById('colorbar'));
 });
 
-// Window resize handler
+// Window resize
 let resizeTimeout;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
@@ -577,7 +577,15 @@ window.addEventListener('resize', () => {
 // Initial colorbar
 drawColorbar(document.getElementById('colorbar'));
 
-// Service worker for PWA
+// Service worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// Check WebUSB support
+if (!navigator.usb) {
+    setStatus('❌ WebUSB not supported. Use Chrome/Edge on desktop or Android.', true);
+    connectBtn.disabled = true;
+} else {
+    setStatus('Ready. Click "Connect SDR" to begin.');
 }
