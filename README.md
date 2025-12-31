@@ -10,7 +10,7 @@ Installable as a PWA, works offline after first load for App-like experience.
 - Inspired by [Radio Receiver](https://radio.ea1iti.es) by Jacobo Tarrío
 
 <table>
-  <tr><td><img src="/img/screenshot_2.jpg" width="300" alt="controls"></td><td><img src="/img/screenshot_1.jpg" width="300" alt="scan"></td></tr>
+  <tr><td><img src="/img/RTL-SDR.jpg" width="250" alt="hardware"></td><td><img src="/img/screenshot_2.jpg" width="250" alt="controls"></td><td><img src="/img/screenshot_1.jpg" width="250" alt="scan"></td></tr>
 </table>
 
 ## Features
